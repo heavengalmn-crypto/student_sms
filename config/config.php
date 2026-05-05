@@ -3,7 +3,7 @@
 
 define('APP_NAME', 'Student Management System');
 define('APP_URL', 'http://localhost/sms');
-define('APP_DEBUG', false);  // Set to false in production to prevent debug information exposure
+define('APP_DEBUG', true);  // Set to false in production to prevent debug information exposure
 define('OTP_EXPIRY_MINUTES', 5);
 
 // ==================== PHPMailer Gmail SMTP Config ====================

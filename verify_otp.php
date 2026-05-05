@@ -5,21 +5,22 @@ require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/controllers/AuthController.php';
 
-// Must have an OTP session started from login
+session_start();
+
 if (empty($_SESSION['pre_auth_user_id'])) {
-    header('Location: ' . APP_URL . '/login.php');
+  header('Location: ' . ($result['redirect'] ?? APP_URL . '/dashboard.php'));
     exit;
 }
+
 if (isLoggedIn()) {
     header('Location: ' . APP_URL . '/dashboard.php');
     exit;
 }
 
-$error   = '';
+$error = '';
 $success = '';
 $controller = new AuthController();
 
-// Resend OTP if requested
 if (isset($_GET['resend']) && $_GET['resend'] === '1') {
     $res = $controller->resendOtp();
     if ($res['success']) {
@@ -29,9 +30,10 @@ if (isset($_GET['resend']) && $_GET['resend'] === '1') {
     }
 }
 
-// Handle OTP submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!verifyCsrf($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['otp']) || empty($_POST['otp'])) {
+        $error = 'OTP is required.';
+    } elseif (!verifyCsrf($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request. Please refresh and try again.';
     } else {
         $result = $controller->verifyOtp($_POST);
@@ -46,6 +48,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $pageTitle = 'OTP Verification';
 include __DIR__ . '/includes/header.php';
+
+// Render the OTP verification form
 ?>
 
 <div class="auth-wrapper">

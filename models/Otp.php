@@ -48,15 +48,15 @@ class Otp {
      * Verify the entered OTP for the user using secure hash comparison.
      */
     public function verify(int $userId, string $enteredOtp): bool {
-        // Sanitize input
         $enteredOtp = trim($enteredOtp);
 
-        // Validate format (must be 6 digits)
         if (!ctype_digit($enteredOtp) || strlen($enteredOtp) !== 6) {
+            if (defined('APP_DEBUG') && APP_DEBUG) {
+                error_log("OTP format invalid for user $userId: '$enteredOtp'");
+            }
             return false;
         }
 
-        // Retrieve the latest *unused* and *not expired* OTP
         $sql = "SELECT id, otp_code, expires_at 
                 FROM otps 
                 WHERE user_id = :user_id 
@@ -64,21 +64,32 @@ class Otp {
                   AND expires_at > NOW() 
                 ORDER BY created_at DESC 
                 LIMIT 1";
+        
         $stmt = $this->db->prepare($sql);
         $stmt->execute([':user_id' => $userId]);
         $record = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$record) {
+            if (defined('APP_DEBUG') && APP_DEBUG) {
+                error_log("No valid OTP record found for user $userId");
+                // Check if there are any OTPs at all for this user
+                $checkSql = "SELECT COUNT(*) as count FROM otps WHERE user_id = :user_id";
+                $checkStmt = $this->db->prepare($checkSql);
+                $checkStmt->execute([':user_id' => $userId]);
+                $count = $checkStmt->fetch(PDO::FETCH_ASSOC)['count'];
+                error_log("Total OTP records for user $userId: $count");
+            }
             return false;
         }
 
-        // Use timing-safe comparison with hashed OTP
         if (password_verify($enteredOtp, $record['otp_code'])) {
-            // Mark as used so it cannot be reused
             $this->markUsedById($record['id']);
             return true;
         }
 
+        if (defined('APP_DEBUG') && APP_DEBUG) {
+            error_log("OTP hash verification failed for user $userId");
+        }
         return false;
     }
 
